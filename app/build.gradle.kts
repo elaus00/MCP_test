@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 val mcpVersion = "0.4.0"
 val slf4jVersion = "2.0.9"
 val anthropicVersion = "0.8.0"
@@ -7,6 +10,13 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.github.johnrengelman.shadow") version "8.1.1"
+}
+
+// local.properties 파일에서 API 키 읽기
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -21,6 +31,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // API 키를 BuildConfig 필드로 추가
+        buildConfigField("String", "ANTHROPIC_API_KEY", "\"${localProperties.getProperty("anthropicApiKey")}\"")
+    }
+    
+    buildFeatures {
+        buildConfig = true
+        compose = true
     }
 
     buildTypes {
@@ -39,9 +57,7 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    buildFeatures {
-        compose = true
-    }
+
     packaging {
         resources {
             excludes += "/META-INF/DEPENDENCIES"
@@ -53,8 +69,15 @@ android {
     }
 }
 
-dependencies {
+// 종속성 충돌 해결을 위한 설정
+configurations.all {
+    resolutionStrategy {
+        // 모든 kotlin-logging 관련 의존성을 특정 버전으로 강제
+        force("io.github.oshai:kotlin-logging-jvm:5.1.0")
+    }
+}
 
+dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -73,4 +96,25 @@ dependencies {
     implementation("io.modelcontextprotocol:kotlin-sdk:$mcpVersion")
     implementation("org.slf4j:slf4j-nop:$slf4jVersion")
     implementation("com.anthropic:anthropic-java:$anthropicVersion")
+
+    // HTTP 클라이언트 의존성 (OkHttp 또는 Ktor 사용)
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.okhttp3:okhttp-sse:4.10.0")
+
+    // Ktor 클라이언트 의존성 추가
+    implementation(libs.ktor.client.auth)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.client.plugins)
+    implementation(libs.jackson.module.kotlin)
+
+    // Jackson Kotlin 모듈 추가
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.1")
+
+    // Jackson Java 8 데이터 타입 모듈 추가
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.18.1")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.1")
 }
